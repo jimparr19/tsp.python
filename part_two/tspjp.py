@@ -1,7 +1,7 @@
 # function for simple tsp problem
 
 from math import sqrt
-import pylab
+import matplotlib
 import random
 
 def importCoordsFromFile(fileName):
@@ -44,8 +44,16 @@ def visualiseRoute(coords, cityOrder):
     for i, (x1, y1) in enumerate(coords):
         x.append(x1)
         y.append(y1)
-    pylab.plot(x, y, '-o', markerfacecolor='green', markersize=10,
-               color=(0.5, 0.5, 0.5, 1))
+    matplotlib.pyplot.plot(x, y, 'o', markerfacecolor='green', markersize=10)
+    matplotlib.pyplot.hold(True)
+    matplotlib.pyplot.axis('equal')
+    matplotlib.pyplot.axis('off')
+    xr = []
+    yr = []
+    for j in cityOrder:
+        xr.append(x[j])
+        yr.append(y[j])
+    matplotlib.pyplot.plot(xr, yr, '-', color=(0.1, 0.1, 0.1, 1))
 
 
 def initialRoute(numberOfCities):
@@ -64,9 +72,9 @@ def allPairs(size):
     for i in r1:
         for j in r2:
             yield (i, j)
-        
 
-def reversSections(cityOrder):
+
+def reverseSections(cityOrder):
     '''Generator for to reverse all pairs'''
     for i, j in allPairs(len(cityOrder)):
         if i != j:
@@ -79,8 +87,41 @@ def reversSections(cityOrder):
             if copy != cityOrder:
                 yield copy
 
-#    def test_routeLength():
-#        coords = importCoordsFromFile('city100.txt')
-#        distanceMatrix = createDistanceMatrix(coords)
-#        cityOrder = range(100)
-#        routeLength = totalRouteLength(distanceMatric, routeOrder)
+
+def objectiveFunction(matrix, cityOrder):
+    '''Objective function to minimize'''
+    return routeLength(matrix, cityOrder)
+
+
+def hillClimb(initialRoute, matrix, maxEvaluations):
+    '''Hillclim given move operator reverseSections'''
+    bestSolution = initialRoute
+    bestScore = objectiveFunction(matrix, bestSolution)
+    iEvaluation = 1
+    while iEvaluation < maxEvaluations:
+        # examine moves around our current position
+        moveMade = False
+        for next in reverseSections(bestSolution):
+            if iEvaluation >= maxEvaluations:
+                break
+            # see if this move is better than the current
+            nextScore = objectiveFunction(matrix, next)
+            iEvaluation += 1
+            if nextScore < bestScore:
+                bestSolution = next
+                bestScore = nextScore
+                moveMade = True
+                break  # depth first search
+            if not moveMade:
+                break  # we couldn't find a better move
+
+    return (iEvaluation, bestScore, bestSolution)
+
+
+def test_routeLength():
+    coords = importCoordsFromFile('city100.txt')
+    distanceMatrix = createDistanceMatrix(coords)
+    initialGuess = initialRoute(len(coords))
+    [totalEvaluations, score, solution] = hillClimb(initialGuess,
+                                                    distanceMatrix, 50000)
+    visualiseRoute(coords, solution)
